@@ -1,0 +1,2 @@
+ALTER TABLE public.attendance DROP CONSTRAINT attendance_student_id_fkey;
+ALTER TABLE public.attendance ADD CONSTRAINT attendance_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(user_id) ON DELETE CASCADE;

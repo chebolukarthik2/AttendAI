@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Reports — AttendAI</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .export-dropdown { position: relative; display: inline-block; }
+    .export-dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      z-index: 100;
+      overflow: hidden;
+    }
+    .export-dropdown-menu.show { display: block; }
+    .export-dropdown-menu button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: .875rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .export-dropdown-menu button:hover { background: var(--bg-secondary); }
+  </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4aa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendAI">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+
+  <div class="dashboard-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">⬡</div>
+        AttendAI
+      </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Main</div>
+        <a href="dashboard.html"  class="sidebar-link"><span class="link-icon">⊞</span> Dashboard</a>
+        <a href="attendance.html" class="sidebar-link"><span class="link-icon">✓</span> Mark Attendance</a>
+        <a href="report.html"     class="sidebar-link active"><span class="link-icon">📊</span> Reports</a>
+        <div class="sidebar-section-label">Management</div>
+        <a href="students.html" class="sidebar-link"><span class="link-icon">👤</span> Students</a>
+        <a href="faculty.html" class="sidebar-link" id="facultyNavLink"><span class="link-icon">🎓</span> Faculty</a>
+        <a href="courses.html" class="sidebar-link"><span class="link-icon">📚</span> Courses</a>
+        <div class="sidebar-section-label">Account</div>
+        <a href="settings.html" class="sidebar-link"><span class="link-icon">⚙</span> Settings</a>
+        <a href="#" class="sidebar-link" onclick="Auth.logout()"><span class="link-icon">⏻</span> Logout</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">—</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Mobile Menu Toggle -->
+      <button class="mobile-menu-btn" id="menuToggle">
+        <span class="menu-icon">☰</span> Menu
+      </button>
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2>Attendance Reports</h2>
+          <p>Filter, analyse and export attendance data</p>
+        </div>
+        <div class="flex gap-md">
+          <div class="export-dropdown">
+            <button class="btn btn-outline" id="exportBtn">⬇ Export</button>
+            <div class="export-dropdown-menu" id="exportMenu">
+              <button id="exportCSVBtn">📄 Export as CSV</button>
+              <button id="exportExcelBtn">📊 Export as Excel</button>
+              <button id="exportPDFBtn">📕 Export as PDF</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="generateBtn">⚙ Generate Report</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-bar slide-up">
+        <div class="form-group">
+          <label class="form-label">Course</label>
+          <select id="filterCourse" class="form-select">
+            <option value="">All Courses</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Student ID</label>
+          <input type="text" id="filterStudent" class="form-input" placeholder="e.g. 2021CS001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <input type="date" id="filterFrom" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <input type="date" id="filterTo" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="filterStatus" class="form-select">
+            <option value="">All</option>
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Late">Late</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Method</label>
+          <select id="filterMethod" class="form-select">
+            <option value="">All Methods</option>
+            <option value="Voice">Voice</option>
+            <option value="Manual">Manual</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="applyFiltersBtn">Apply</button>
+        <button class="btn btn-ghost"   id="resetFiltersBtn">Reset</button>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid-4 mb-24">
+        <div class="stat-card teal slide-up delay-1">
+          <div class="stat-icon teal">📋</div>
+          <div class="stat-value" id="rTotalRecords">—</div>
+          <div class="stat-label">Total Records</div>
+        </div>
+        <div class="stat-card teal slide-up delay-2">
+          <div class="stat-icon teal">✓</div>
+          <div class="stat-value" id="rPresent">—</div>
+          <div class="stat-label">Present</div>
+        </div>
+        <div class="stat-card red slide-up delay-3">
+          <div class="stat-icon red">✕</div>
+          <div class="stat-value" id="rAbsent">—</div>
+          <div class="stat-label">Absent</div>
+        </div>
+        <div class="stat-card amber slide-up delay-4">
+          <div class="stat-icon amber">⏱</div>
+          <div class="stat-value" id="rLate">—</div>
+          <div class="stat-label">Late</div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid-2 mb-24">
+        <div class="card slide-up delay-1">
+          <div class="card-header">
+            <h4>Attendance Trend</h4>
+          </div>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+        <div class="card slide-up delay-2">
+          <div class="card-header">
+            <h4>Status Breakdown</h4>
+          </div>
+          <div class="chart-container">
+            <canvas id="breakdownChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance Calendar -->
+      <div class="card mb-24 slide-up delay-2" id="calendarSection" style="display:none;">
+        <div class="card-header">
+          <h4>Monthly Calendar</h4>
+          <div class="flex gap-md">
+            <button class="btn btn-ghost btn-sm" id="calPrev">‹</button>
+            <span id="calTitle" style="font-weight:600;font-size:.9rem;"></span>
+            <button class="btn btn-ghost btn-sm" id="calNext">›</button>
+          </div>
+        </div>
+        <div class="attendance-legend mb-16">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div> Present</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Absent</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Late</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--border)"></div> Holiday</div>
+        </div>
+        <div class="cal-grid" id="calDayHeaders" style="margin-bottom:6px;">
+          <div class="cal-day empty">Su</div><div class="cal-day empty">Mo</div><div class="cal-day empty">Tu</div>
+          <div class="cal-day empty">We</div><div class="cal-day empty">Th</div><div class="cal-day empty">Fr</div>
+          <div class="cal-day empty">Sa</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <!-- Per-Student Summary -->
+      <div class="card mb-24 slide-up delay-2">
+        <div class="card-header">
+          <h4>Per-Student Summary</h4>
+          <div class="flex gap-md">
+            <input type="text" id="studentSearch" class="form-input" placeholder="Search student…" style="width:min(200px,100%)">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Name</th>
+                <th>Course</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Late</th>
+                <th>Percentage</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTbody">
+              <tr>
+                <td colspan="9" class="text-center" style="padding:32px;color:var(--text-muted);">
+                  Apply filters and click <strong>Generate Report</strong> to load data
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="paginationBar" class="flex-between mt-16 hidden" style="font-size:.85rem;color:var(--text-muted);">
+          <span id="paginationInfo">Showing 0 of 0 records</span>
+          <div class="flex gap-md">
+            <button class="btn btn-ghost btn-sm" id="prevPage" disabled>‹ Prev</button>
+            <button class="btn btn-ghost btn-sm" id="nextPage" disabled>Next ›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Records -->
+      <div class="card slide-up delay-3">
+        <div class="card-header">
+          <h4>Detailed Records</h4>
+          <span id="recordCount" class="badge badge-gray">0 records</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Student ID</th>
+                <th>Student Name</th>
+                <th>Course</th>
+                <th>Status</th>
+                <th>Marked At</th>
+                <th>Method</th>
+                <th>Geo-verified</th>
+              </tr>
+            </thead>
+            <tbody id="detailTbody">
+              <tr>
+                <td colspan="8" class="text-center" style="padding:32px;color:var(--text-muted);">No records loaded</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    // ─── Init ──────────────────────────────────────────────────
+    requireAuth();
+    const user = Auth.getUser();
+    if (user) {
+      document.getElementById('userName').textContent  = user.username || '—';
+      document.getElementById('userRole').textContent  = user.role || '—';
+      document.getElementById('userAvatar').textContent = (user.username || 'U')[0].toUpperCase();
+    }
+
+    // Default date range — this month
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('filterFrom').value = start.toISOString().split('T')[0];
+    document.getElementById('filterTo').value   = now.toISOString().split('T')[0];
+
+    // Load courses into filter
+    CourseAPI.list().then(courses => {
+      const sel = document.getElementById('filterCourse');
+      courses.forEach(c => {
+        sel.innerHTML += `<option value="${c.id}">${c.code} — ${c.name}</option>`;
+      });
+    }).catch(() => {});
+
+    // ─── Charts ────────────────────────────────────────────────
+    let trendChart, breakdownChart;
+
+    function buildTrendChart(labels = [], data = []) {
+      const ctx = document.getElementById('trendChart');
+      if (trendChart) trendChart.destroy();
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Attendance %',
+            data,
+            borderColor: '#00d4aa',
+            backgroundColor: 'rgba(0,212,170,0.08)',
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#00d4aa',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color:'#8a9ab8', font:{ family:'Outfit' } } },
+            tooltip: { backgroundColor:'#111827', borderColor:'#1e2d45', borderWidth:1, titleColor:'#e8edf5', bodyColor:'#8a9ab8' }
+          },
+          scales: {
+            x: { grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#8a9ab8', font:{ family:'Outfit' } } },
+            y: { beginAtZero:true, max:100, grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#8a9ab8', font:{ family:'Outfit' }, callback: v => v+'%' } }
+          }
+        }
+      });
+    }
+
+    function buildBreakdownChart(present = 0, absent = 0, late = 0) {
+      const ctx = document.getElementById('breakdownChart');
+      if (breakdownChart) breakdownChart.destroy();
+      breakdownChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['Present', 'Absent', 'Late'],
+          datasets: [{
+            data: [present, absent, late],
+            backgroundColor: ['rgba(0,212,170,0.8)', 'rgba(239,68,68,0.7)', 'rgba(245,158,11,0.7)'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position:'right', labels:{ color:'#8a9ab8', font:{ family:'Outfit', size:12 }, boxWidth:10, borderRadius:3 } },
+            tooltip: { backgroundColor:'#111827', borderColor:'#1e2d45', borderWidth:1, titleColor:'#e8edf5', bodyColor:'#8a9ab8' }
+          }
+        }
+      });
+    }
+
+    // ─── Generate Report ───────────────────────────────────────
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Loading…';
+
+      const params = {
+        course_id:  document.getElementById('filterCourse').value,
+        student_id: document.getElementById('filterStudent').value.trim(),
+        from_date:  document.getElementById('filterFrom').value,
+        to_date:    document.getElementById('filterTo').value,
+        status:     document.getElementById('filterStatus').value,
+        method:     document.getElementById('filterMethod').value
+      };
+      Object.keys(params).forEach(k => { if (!params[k]) delete params[k]; });
+
+      try {
+        const data = await ReportAPI.generate(params);
+
+        document.getElementById('rTotalRecords').textContent = data.total   ?? '—';
+        document.getElementById('rPresent').textContent      = data.present ?? '—';
+        document.getElementById('rAbsent').textContent       = data.absent  ?? '—';
+        document.getElementById('rLate').textContent         = data.late    ?? '—';
+        document.getElementById('recordCount').textContent   = (data.total ?? 0) + ' records';
+
+        buildTrendChart(data.trend?.labels || [], data.trend?.values || []);
+        buildBreakdownChart(data.present || 0, data.absent || 0, data.late || 0);
+        renderSummaryTable(data.student_summary || []);
+        renderDetailTable(data.records || []);
+
+        Toast.success('Report generated!');
+      } catch (err) {
+        Toast.error(getErrorMessage(err));
+        buildTrendChart([], []);
+        buildBreakdownChart(0, 0, 0);
+        document.getElementById('rTotalRecords').textContent = '0';
+        document.getElementById('rPresent').textContent      = '0';
+        document.getElementById('rAbsent').textContent       = '0';
+        document.getElementById('rLate').textContent         = '0';
+        renderSummaryTable([]);
+        renderDetailTable([]);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '⚙ Generate Report';
+      }
+    });
+
+    // ─── Render Tables ────────────────────────────────────────
+    const PAGE_SIZE = 10;
+    let allSummaryRows = [];
+    let currentPage = 0;
+
+    function renderSummaryTable(rows) {
+      allSummaryRows = rows;
+      currentPage = 0;
+      renderSummaryPage();
+    }
+
+    function renderSummaryPage() {
+      const tbody = document.getElementById('summaryTbody');
+      const rows  = allSummaryRows;
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding:24px;color:var(--text-muted);">No student data found</td></tr>`;
+        document.getElementById('paginationBar').classList.add('hidden');
+        return;
+      }
+
+      const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+      const start = currentPage * PAGE_SIZE;
+      const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+      tbody.innerHTML = pageRows.map(r => {
+        const pct = r.percentage ?? 0;
+        const badgeClass = pct >= 75 ? 'badge-teal' : pct >= 60 ? 'badge-amber' : 'badge-red';
+        const statusLbl  = pct >= 75 ? 'On Track' : pct >= 60 ? 'At Risk' : 'Critical';
+        return `
+          <tr>
+            <td>${esc(r.student_id)}</td>
+            <td style="color:var(--text-primary);font-weight:500;">${esc(r.name)}</td>
+            <td>${esc(r.course)}</td>
+            <td class="text-teal">${r.present}</td>
+            <td class="text-red">${r.absent}</td>
+            <td class="text-amber">${r.late}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="progress-bar-wrap" style="width:60px;height:5px;">
+                  <div class="progress-bar-fill ${pct<75?pct<60?'red':'amber':''}" style="width:${pct}%"></div>
+                </div>
+                <span style="font-size:.85rem;">${pct.toFixed(1)}%</span>
+              </div>
+            </td>
+            <td><span class="badge ${badgeClass}">${statusLbl}</span></td>
+            <td>
+              <button class="btn btn-ghost btn-sm" onclick="viewStudentCalendar('${esc(r.student_id)}')">📅</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Pagination controls
+      const bar = document.getElementById('paginationBar');
+      bar.classList.toggle('hidden', rows.length <= PAGE_SIZE);
+      document.getElementById('paginationInfo').textContent =
+        `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length} students`;
+      document.getElementById('prevPage').disabled = currentPage === 0;
+      document.getElementById('nextPage').disabled = currentPage >= totalPages - 1;
+    }
+
+    document.getElementById('prevPage').addEventListener('click', () => {
+      if (currentPage > 0) { currentPage--; renderSummaryPage(); }
+    });
+    document.getElementById('nextPage').addEventListener('click', () => {
+      if (currentPage < Math.ceil(allSummaryRows.length / PAGE_SIZE) - 1) { currentPage++; renderSummaryPage(); }
+    });
+
+    function renderDetailTable(records) {
+      const tbody = document.getElementById('detailTbody');
+      if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding:24px;color:var(--text-muted);">No records in this range</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = records.map(r => {
+        const methodLabel = r.method === 'Face' ? 'Voice' : (r.method || 'Manual');
+        const methodIcon  = methodLabel === 'Voice' ? '🎙️' : '✏️';
+        const geoIcon     = r.geo_verified ? '<span style="color:var(--teal);">✓ Yes</span>' : '<span style="color:var(--text-muted);">—</span>';
+        const statusClass = r.status === 'Present' ? 'teal' : r.status === 'Late' ? 'amber' : 'red';
+        return `
+          <tr>
+            <td>${esc(r.date)}</td>
+            <td>${esc(r.student_id)}</td>
+            <td style="color:var(--text-primary);">${esc(r.student_name)}</td>
+            <td>${esc(r.course)}</td>
+            <td><span class="badge badge-${statusClass}">${esc(r.status)}</span></td>
+            <td style="font-size:.8rem;">${r.marked_at ? new Date(r.marked_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+            <td><span class="badge badge-gray">${methodIcon} ${esc(methodLabel)}</span></td>
+            <td>${geoIcon}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ─── Calendar — shows real attendance data from DB ────────────
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth();
+    let calStudentId = null;      // roll number of student being viewed
+    let calAttendanceMap = {};    // 'YYYY-MM-DD' → 'Present'|'Absent'|'Late'
+
+    async function viewStudentCalendar(studentId) {
+      calStudentId = studentId;
+      document.getElementById('calendarSection').style.display = 'block';
+      document.getElementById('calendarSection').scrollIntoView({ behavior:'smooth' });
+      await loadAndRenderCalendar();
+    }
+
+    async function loadAndRenderCalendar() {
+      // Fetch this student's attendance for the displayed month from DB
+      calAttendanceMap = {};
+      if (calStudentId) {
+        try {
+          const monthStart = `${calYear}-${String(calMonth + 1).padStart(2,'0')}-01`;
+          const monthEnd   = new Date(calYear, calMonth + 1, 0).toISOString().split('T')[0];
+          const params = { student_id: calStudentId, from_date: monthStart, to_date: monthEnd };
+          const data = await ReportAPI.generate(params);
+          (data.records || []).forEach(r => { calAttendanceMap[r.date] = r.status; });
+        } catch(e) { /* silently fall back to empty */ }
+      }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('calTitle').textContent = `${months[calMonth]} ${calYear}`;
+
+      const grid = document.getElementById('calGrid');
+      const firstDay    = new Date(calYear, calMonth, 1).getDay();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const today = new Date();
+
+      grid.innerHTML = '';
+
+      for (let i = 0; i < firstDay; i++) {
+        grid.innerHTML += `<div class="cal-day empty"></div>`;
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+        const dateKey = `${calYear}-${String(calMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const status  = calAttendanceMap[dateKey];
+        const cls     = status === 'Present' ? 'present'
+                      : status === 'Absent'  ? 'absent'
+                      : status === 'Late'    ? 'late'
+                      : '';
+        const icon    = status === 'Present' ? '<span style="font-size:.5rem;display:block;opacity:.7;">🎙️</span>'
+                      : status === 'Late'    ? '<span style="font-size:.5rem;display:block;opacity:.7;">⏱</span>'
+                      : '';
+        grid.innerHTML += `<div class="cal-day ${cls}${isToday?' today':''}" title="${status || ''}">${d}${icon}</div>`;
+      }
+    }
+
+    document.getElementById('calPrev').addEventListener('click', () => {
+      calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+      loadAndRenderCalendar();
+    });
+    document.getElementById('calNext').addEventListener('click', () => {
+      calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+      loadAndRenderCalendar();
+    });
+
+    // ─── Export Dropdown ──────────────────────────────────────
+    document.getElementById('exportBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('exportMenu').classList.toggle('show');
+    });
+    document.addEventListener('click', () => {
+      document.getElementById('exportMenu').classList.remove('show');
+    });
+
+    function getExportParams() {
+      const params = {
+        course_id: document.getElementById('filterCourse').value,
+        from_date: document.getElementById('filterFrom').value,
+        to_date:   document.getElementById('filterTo').value
+      };
+      Object.keys(params).forEach(k => { if (!params[k]) delete params[k]; });
+      return params;
+    }
+
+    // Export CSV
+    document.getElementById('exportCSVBtn').addEventListener('click', async () => {
+      try {
+        const blob = await ReportAPI.exportCSV(getExportParams());
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = `attendance_report_${Date.now()}.csv`; a.click();
+        URL.revokeObjectURL(url);
+        Toast.success('CSV exported!');
+      } catch (err) {
+        Toast.error('Export failed: ' + getErrorMessage(err));
+      }
+    });
+
+    // Export Excel
+    document.getElementById('exportExcelBtn').addEventListener('click', async () => {
+      try {
+        const data = await ReportAPI.generate(getExportParams());
+        const records = data.records || [];
+        // Build TSV (opens in Excel)
+        let tsv = 'Date\tStudent ID\tStudent Name\tCourse\tStatus\tMethod\tGeo-verified\n';
+        records.forEach(r => {
+          tsv += `${r.date}\t${r.student_id}\t${r.student_name}\t${r.course}\t${r.status}\t${r.method}\t${r.geo_verified}\n`;
+        });
+        const blob = new Blob([tsv], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `attendance_report_${Date.now()}.xls`; a.click();
+        URL.revokeObjectURL(url);
+        Toast.success('Excel exported!');
+      } catch (err) {
+        Toast.error('Export failed: ' + getErrorMessage(err));
+      }
+    });
+
+    // Export PDF
+    document.getElementById('exportPDFBtn').addEventListener('click', async () => {
+      try {
+        const data = await ReportAPI.generate(getExportParams());
+        const records = data.records || [];
+        // Build a printable HTML and open print dialog
+        const printWin = window.open('', '_blank');
+        printWin.document.write(`
+          <html><head><title>Attendance Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { font-size: 18px; margin-bottom: 4px; }
+            p { font-size: 12px; color: #666; margin-bottom: 16px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+            th { background: #f5f5f5; font-weight: 600; }
+            .summary { display: flex; gap: 24px; margin-bottom: 16px; }
+            .summary div { font-size: 13px; }
+            .summary strong { font-size: 18px; }
+          </style>
+</head><body>
+          <h1>AttendAI — Attendance Report</h1>
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+          <div class="summary">
+            <div>Total: <strong>${data.total || 0}</strong></div>
+            <div>Present: <strong>${data.present || 0}</strong></div>
+            <div>Absent: <strong>${data.absent || 0}</strong></div>
+            <div>Late: <strong>${data.late || 0}</strong></div>
+          </div>
+          <table>
+            <thead><tr><th>Date</th><th>Student ID</th><th>Name</th><th>Course</th><th>Status</th><th>Method</th><th>Geo</th></tr></thead>
+            <tbody>
+              ${records.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.course)}</td><td>${esc(r.status)}</td><td>${esc(r.method)}</td><td>${r.geo_verified ? 'Yes' : 'No'}</td></tr>`).join('')}
+            </tbody>
+          </table>
+  </body></html>
+        `);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(() => { printWin.print(); }, 500);
+        Toast.success('PDF export opened — use print dialog to save as PDF.');
+      } catch (err) {
+        Toast.error('Export failed: ' + getErrorMessage(err));
+      }
+    });
+
+    // ─── Filter Reset ─────────────────────────────────────────
+    document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+      document.getElementById('filterCourse').value  = '';
+      document.getElementById('filterStudent').value = '';
+      document.getElementById('filterStatus').value  = '';
+      document.getElementById('filterMethod').value  = '';
+      const now2   = new Date();
+      const start2 = new Date(now2.getFullYear(), now2.getMonth(), 1);
+      document.getElementById('filterFrom').value = start2.toISOString().split('T')[0];
+      document.getElementById('filterTo').value   = now2.toISOString().split('T')[0];
+    });
+
+    document.getElementById('studentSearch').addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('#summaryTbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+
+    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+      document.getElementById('generateBtn').click();
+    });
+
+    // Load demo charts on page load
+    buildTrendChart(
+      ['Jan 1','Jan 8','Jan 15','Jan 22','Jan 29'],
+      [75, 80, 72, 88, 85]
+    );
+    buildBreakdownChart(65, 25, 10);
+  </script>
+<script>
+// Role-based UI for reports
+document.addEventListener("DOMContentLoaded", function() {
+  var user = Auth.getUser();
+  if (user && user.role === "student") {
+    var filterStudent = document.getElementById("filterStudent");
+    if (filterStudent && user.roll_number) {
+      filterStudent.value = user.roll_number;
+      filterStudent.readOnly = true;
+    }
+    document.querySelectorAll(".sidebar-section-label").forEach(function(label) {
+      if (label.textContent.trim() === "Management") {
+        label.style.display = "none";
+        var next = label.nextElementSibling;
+        while (next && !next.classList.contains("sidebar-section-label")) {
+          next.style.display = "none";
+          next = next.nextElementSibling;
+        }
+      }
+    });
+  }
+});
+</script>
+  <!-- Mobile Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <script>
+    (function() {
+      var btn     = document.getElementById("menuToggle");
+      var sidebar = document.querySelector(".sidebar");
+      var overlay = document.getElementById("sidebarOverlay");
+      function openSidebar()  { sidebar.classList.add("open");    overlay.classList.add("active"); }
+      function closeSidebar() { sidebar.classList.remove("open"); overlay.classList.remove("active"); }
+      if (btn)     btn.addEventListener("click", openSidebar);
+      if (overlay) overlay.addEventListener("click", closeSidebar);
+    })();
+  </script>
+</body>
+</html>

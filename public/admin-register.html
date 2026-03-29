@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Registration — AttendAI</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4aa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendAI">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+  <div class="auth-page">
+    <!-- Visual Panel -->
+    <div class="auth-visual">
+      <div class="auth-orb auth-orb-1"></div>
+      <div class="auth-orb auth-orb-2"></div>
+      <div class="auth-visual-content slide-up">
+        <div class="hero-badge" style="margin-bottom:24px;">
+          <span>🛡️</span> Administrator Access
+        </div>
+        <h2>Register as an Administrator</h2>
+        <p style="margin-top:16px; margin-bottom:36px;">
+          Create a new administrator account to manage faculty, students, courses, and system settings.
+        </p>
+        <ul class="checklist">
+          <li>Full system management access</li>
+          <li>Add & remove faculty members</li>
+          <li>Manage student records</li>
+          <li>View all attendance reports</li>
+          <li>System configuration & settings</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Form Panel -->
+    <div class="auth-form-panel" style="padding:32px 40px; overflow-y:auto;">
+      <div class="auth-form-box slide-up" style="max-width:420px;">
+        <div class="auth-logo">
+          <div class="logo-icon">⬡</div>
+          AttendAI
+        </div>
+
+        <h2 class="auth-title">Admin Registration</h2>
+        <p class="auth-subtitle">Create a new administrator account</p>
+
+        <div id="errorBox" class="alert alert-error hidden"></div>
+        <div id="successBox" class="alert alert-success hidden"></div>
+
+        <form id="adminRegForm">
+          <div class="grid-2" style="gap:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">First Name</label>
+              <input type="text" id="aFirstName" class="form-input" placeholder="Admin" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Last Name</label>
+              <input type="text" id="aLastName" class="form-input" placeholder="User" required>
+            </div>
+          </div>
+
+          <div class="form-group mt-16">
+            <label class="form-label">Email Address</label>
+            <div class="input-group">
+              <span class="input-icon">✉</span>
+              <input type="email" id="aEmail" class="form-input" placeholder="admin@university.edu" autocomplete="off" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <select id="aDepartment" class="form-select">
+              <option value="">— Select —</option>
+              <option>Administration</option>
+              <option>Computer Science</option>
+              <option>Electronics & Communication</option>
+              <option>Mechanical Engineering</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-group">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="aPassword" class="form-input" placeholder="Min. 8 characters" autocomplete="new-password" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <div class="input-group">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="aConfirmPassword" class="form-input" placeholder="Repeat password" autocomplete="new-password" required>
+            </div>
+          </div>
+
+          <label style="display:flex;align-items:flex-start;gap:10px;font-size:0.85rem;color:var(--text-secondary);cursor:pointer;margin-bottom:20px;">
+            <input type="checkbox" id="aTermsCheck" style="accent-color:var(--teal);margin-top:2px;" required>
+            I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+          </label>
+
+          <button type="submit" id="aSubmitBtn" class="btn btn-primary btn-block btn-lg">
+            Create Admin Account
+          </button>
+        </form>
+
+        <div class="auth-footer-link mt-16">
+          Already have an account? <a href="login.html" style="font-weight:600;">Sign in →</a>
+        </div>
+        <div style="margin-top:12px; text-align:center;">
+          <a href="register.html" style="font-size:0.8rem; color:var(--text-muted);">Register as Student/Faculty →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    document.getElementById('adminRegForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('errorBox');
+      const successBox = document.getElementById('successBox');
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      const password = document.getElementById('aPassword').value;
+      const confirm = document.getElementById('aConfirmPassword').value;
+
+      if (password !== confirm) {
+        errBox.textContent = 'Passwords do not match.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (password.length < 8) {
+        errBox.textContent = 'Password must be at least 8 characters.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('aSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Creating account…';
+
+      try {
+        const resp = await fetch(SUPABASE_URL + '/functions/v1/manage-users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            action: 'create_user',
+            email: document.getElementById('aEmail').value.trim(),
+            password: password,
+            first_name: document.getElementById('aFirstName').value.trim(),
+            last_name: document.getElementById('aLastName').value.trim(),
+            department: document.getElementById('aDepartment').value,
+            role: 'admin'
+          })
+        });
+        const result = await resp.json();
+        if (result.error) throw new Error(result.error);
+
+        successBox.textContent = 'Admin account created! Redirecting to login…';
+        successBox.classList.remove('hidden');
+        Toast.success('Admin registration successful!');
+        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+      } catch (err) {
+        errBox.textContent = err.message || 'Registration failed.';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Admin Account';
+      }
+    });
+  </script>
+</body>
+</html>

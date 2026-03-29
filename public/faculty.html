@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Management — AttendAI</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4aa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendAI">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">⬡</div>
+        AttendAI
+      </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Main</div>
+        <a href="dashboard.html" class="sidebar-link"><span class="link-icon">⊞</span> Dashboard</a>
+        <a href="attendance.html" class="sidebar-link"><span class="link-icon">✓</span> Mark Attendance</a>
+        <a href="report.html" class="sidebar-link"><span class="link-icon">📊</span> Reports</a>
+        <div class="sidebar-section-label">Management</div>
+        <a href="students.html" class="sidebar-link"><span class="link-icon">👤</span> Students</a>
+        <a href="faculty.html" class="sidebar-link active"><span class="link-icon">🎓</span> Faculty</a>
+        <a href="courses.html" class="sidebar-link"><span class="link-icon">📚</span> Courses</a>
+        <div class="sidebar-section-label">Account</div>
+        <a href="settings.html" class="sidebar-link"><span class="link-icon">⚙</span> Settings</a>
+        <a href="#" class="sidebar-link" id="logoutBtn"><span class="link-icon">⏻</span> Logout</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Loading…</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <!-- Mobile Menu Toggle -->
+      <button class="mobile-menu-btn" id="menuToggle">
+        <span class="menu-icon">☰</span> Menu
+      </button>
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2>Faculty Management</h2>
+          <p>Add or remove faculty members</p>
+        </div>
+        <button class="btn btn-primary" id="addFacultyBtn">➕ Add Faculty</button>
+      </div>
+
+      <!-- Add Faculty Form -->
+      <div id="addFacultyForm" class="card mb-24" style="display:none;">
+        <div class="card-header"><h4>Add New Faculty</h4>
+          <button class="btn btn-ghost btn-sm" id="cancelAddBtn">✕ Cancel</button>
+        </div>
+        <form id="facultyForm">
+          <div class="grid-2" style="gap:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">First Name</label>
+              <input type="text" id="fFirstName" class="form-input" placeholder="First name" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Last Name</label>
+              <input type="text" id="fLastName" class="form-input" placeholder="Last name" required>
+            </div>
+          </div>
+          <div class="form-group mt-16">
+            <label class="form-label">Email</label>
+            <input type="email" id="fEmail" class="form-input" placeholder="faculty@university.edu" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <select id="fDepartment" class="form-select">
+              <option value="">— Select —</option>
+              <option>Computer Science</option>
+              <option>Electronics & Communication</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+              <option>Business Administration</option>
+              <option>Mathematics</option>
+              <option>Physics</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" id="fPassword" class="form-input" placeholder="Min. 8 characters" required>
+          </div>
+          <div id="fError" class="alert alert-error hidden"></div>
+          <div id="fSuccess" class="alert alert-success hidden"></div>
+          <button type="submit" id="fSubmitBtn" class="btn btn-primary">Create Faculty Account</button>
+        </form>
+      </div>
+
+      <!-- Department Filter with Save -->
+      <div class="card mb-24">
+        <div class="card-header"><h4>Filter</h4>
+          <button class="btn btn-primary btn-sm" id="saveDeptFilterBtn">💾 Save Preference</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Filter by Department</label>
+          <select id="filterDept" class="form-select">
+            <option value="">All Departments</option>
+            <option>Computer Science</option>
+            <option>Electronics & Communication</option>
+            <option>Mechanical Engineering</option>
+            <option>Civil Engineering</option>
+            <option>Business Administration</option>
+            <option>Mathematics</option>
+            <option>Physics</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Faculty List -->
+      <div class="card">
+        <div class="card-header"><h4>All Faculty</h4>
+          <span class="badge badge-teal" id="facultyCount">—</span>
+        </div>
+        <div id="facultyList">
+          <div class="text-center" style="padding:24px;"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    let allFacultyProfiles = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      requireAuth();
+      const user = Auth.getUser();
+
+      if (!user || user.role !== 'admin') {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      document.getElementById('userName').textContent = user.name || user.username;
+      document.getElementById('userRole').textContent = user.role;
+      document.getElementById('userAvatar').textContent = (user.first_name || 'U')[0].toUpperCase();
+
+      document.getElementById('logoutBtn').addEventListener('click', () => Auth.logout());
+
+      document.getElementById('addFacultyBtn').addEventListener('click', () => {
+        document.getElementById('addFacultyForm').style.display = '';
+      });
+      document.getElementById('cancelAddBtn').addEventListener('click', () => {
+        document.getElementById('addFacultyForm').style.display = 'none';
+      });
+
+      // Restore saved department preference
+      const savedDept = localStorage.getItem('faculty_dept_filter') || '';
+      document.getElementById('filterDept').value = savedDept;
+
+      // Filter change
+      document.getElementById('filterDept').addEventListener('change', () => {
+        renderFaculty();
+      });
+
+      // Save department preference
+      document.getElementById('saveDeptFilterBtn').addEventListener('click', () => {
+        const dept = document.getElementById('filterDept').value;
+        localStorage.setItem('faculty_dept_filter', dept);
+        Toast.success('Department preference saved! This filter will be applied by default.');
+      });
+
+      await loadFaculty();
+
+      // Handle form submit
+      document.getElementById('facultyForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById('fError');
+        const successBox = document.getElementById('fSuccess');
+        errBox.classList.add('hidden');
+        successBox.classList.add('hidden');
+
+        const btn = document.getElementById('fSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Creating…';
+
+        try {
+          const resp = await fetch(SUPABASE_URL + '/functions/v1/manage-users', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+              'apikey': SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({
+              action: 'create_user',
+              email: document.getElementById('fEmail').value.trim(),
+              password: document.getElementById('fPassword').value,
+              first_name: document.getElementById('fFirstName').value.trim(),
+              last_name: document.getElementById('fLastName').value.trim(),
+              department: document.getElementById('fDepartment').value,
+              role: 'faculty'
+            })
+          });
+          const result = await resp.json();
+          if (result.error) throw new Error(result.error);
+
+          successBox.textContent = 'Faculty account created successfully!';
+          successBox.classList.remove('hidden');
+          document.getElementById('facultyForm').reset();
+          Toast.success('Faculty added!');
+          await loadFaculty();
+        } catch (err) {
+          errBox.textContent = err.message || 'Failed to create faculty.';
+          errBox.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Create Faculty Account';
+        }
+      });
+    });
+
+    async function loadFaculty() {
+      const container = document.getElementById('facultyList');
+      container.innerHTML = '<div class="text-center" style="padding:24px;"><span class="spinner"></span></div>';
+
+      try {
+        const sb = getSupabase();
+        const { data: facultyRoles } = await sb.from('user_roles').select('user_id').eq('role', 'faculty');
+        if (!facultyRoles || facultyRoles.length === 0) {
+          allFacultyProfiles = [];
+          renderFaculty();
+          return;
+        }
+        const facultyIds = facultyRoles.map(r => r.user_id);
+        const { data: profiles } = await sb.from('profiles').select('*').in('user_id', facultyIds).order('first_name');
+        allFacultyProfiles = profiles || [];
+        renderFaculty();
+      } catch (err) {
+        container.innerHTML = '<p class="text-muted text-center" style="padding:24px;">Error loading faculty list.</p>';
+      }
+    }
+
+    function renderFaculty() {
+      const container = document.getElementById('facultyList');
+      const deptFilter = document.getElementById('filterDept').value;
+
+      let filtered = allFacultyProfiles;
+      if (deptFilter) {
+        filtered = filtered.filter(p => p.department === deptFilter);
+      }
+
+      document.getElementById('facultyCount').textContent = filtered.length;
+
+      if (!filtered.length) {
+        container.innerHTML = '<p class="text-muted text-center" style="padding:24px;">No faculty members found.</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(p => `
+                <tr>
+                  <td style="color:var(--text-primary);font-weight:500;">${p.first_name || ''} ${p.last_name || ''}</td>
+                  <td>${p.email}</td>
+                  <td>${p.department || '—'}</td>
+                  <td>
+                    <button class="btn btn-danger btn-sm delete-faculty-btn" data-id="${p.user_id}" data-name="${p.first_name} ${p.last_name}">
+                      🗑 Remove
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      document.querySelectorAll('.delete-faculty-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const name = btn.dataset.name;
+          const userId = btn.dataset.id;
+          if (!confirm(`Are you sure you want to remove faculty "${name}"?`)) return;
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+          try {
+            const resp = await fetch(SUPABASE_URL + '/functions/v1/manage-users', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                'apikey': SUPABASE_ANON_KEY
+              },
+              body: JSON.stringify({ action: 'delete_user', user_id: userId })
+            });
+            const result = await resp.json();
+            if (result.error) throw new Error(result.error);
+            Toast.success('Faculty removed.');
+            await loadFaculty();
+          } catch (err) {
+            Toast.error(err.message || 'Failed to remove faculty.');
+            btn.disabled = false;
+            btn.innerHTML = '🗑 Remove';
+          }
+        });
+      });
+    }
+  </script>
+  <!-- Mobile Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <script>
+    (function() {
+      var btn     = document.getElementById("menuToggle");
+      var sidebar = document.querySelector(".sidebar");
+      var overlay = document.getElementById("sidebarOverlay");
+      function openSidebar()  { sidebar.classList.add("open");    overlay.classList.add("active"); }
+      function closeSidebar() { sidebar.classList.remove("open"); overlay.classList.remove("active"); }
+      if (btn)     btn.addEventListener("click", openSidebar);
+      if (overlay) overlay.addEventListener("click", closeSidebar);
+    })();
+  </script>
+</body>
+</html>

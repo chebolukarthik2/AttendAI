@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register — AttendAI</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .voice-recorder {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      text-align: center;
+      transition: border-color .2s, background .2s;
+    }
+    .voice-recorder.recording {
+      border-color: var(--teal);
+      background: rgba(0,212,170,0.05);
+    }
+    .voice-recorder.done {
+      border-color: var(--teal);
+      background: rgba(0,212,170,0.07);
+    }
+    .mic-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-secondary);
+      font-size: 1.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .2s, transform .15s;
+      margin-bottom: 12px;
+    }
+    .mic-btn:hover { background: rgba(0,212,170,0.15); transform: scale(1.05); }
+    .mic-btn.active { background: rgba(0,212,170,0.2); animation: pulse-mic 1s infinite; }
+    @keyframes pulse-mic {
+      0%,100% { box-shadow: 0 0 0 0 rgba(0,212,170,0.4); }
+      50%      { box-shadow: 0 0 0 10px rgba(0,212,170,0); }
+    }
+    .waveform {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 32px;
+      margin: 8px 0;
+    }
+    .wave-bar {
+      width: 4px;
+      border-radius: 2px;
+      background: var(--teal);
+      height: 6px;
+      transition: height .1s;
+    }
+    .recording .wave-bar { animation: wave-anim 0.6s ease-in-out infinite alternate; }
+    .wave-bar:nth-child(1) { animation-delay: 0s; }
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+    .wave-bar:nth-child(6) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(7) { animation-delay: 0.1s; }
+    @keyframes wave-anim {
+      from { height: 4px; }
+      to   { height: 24px; }
+    }
+    .upload-progress {
+      font-size: .8rem;
+      color: var(--teal);
+      margin-top: 8px;
+      display: none;
+    }
+  </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4aa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendAI">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+
+  <div class="auth-page">
+
+    <!-- Visual Panel -->
+    <div class="auth-visual">
+      <div class="auth-orb auth-orb-1"></div>
+      <div class="auth-orb auth-orb-2"></div>
+      <div class="auth-visual-content slide-up">
+        <div class="hero-badge" style="margin-bottom:24px;">
+          <span>🚀</span> Get Started Free
+        </div>
+        <h2>Join thousands of educators using AttendAI</h2>
+        <p style="margin-top:16px; margin-bottom:36px;">
+          Register in under a minute. No credit card needed. Start tracking attendance with voice recognition and geo-fencing today.
+        </p>
+        <ul class="checklist">
+          <li>Set up in under 5 minutes</li>
+          <li>Unlimited students &amp; courses</li>
+          <li>Voice enrolment with live recording</li>
+          <li>50 m geo-fence prevents proxy marking</li>
+          <li>Secure, encrypted data storage</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Form Panel -->
+    <div class="auth-form-panel" style="padding:32px 40px; overflow-y:auto;">
+      <div class="auth-form-box slide-up" style="max-width:420px;">
+
+        <div class="auth-logo">
+          <div class="logo-icon">⬡</div>
+          AttendAI
+        </div>
+
+        <h2 class="auth-title">Create account</h2>
+        <p class="auth-subtitle">Fill in the details below to get started</p>
+
+        <div id="errorBox" class="alert alert-error hidden"></div>
+        <div id="successBox" class="alert alert-success hidden"></div>
+
+        <!-- Role Selector -->
+        <div style="display:flex;gap:10px;margin-bottom:24px;">
+          <button type="button" class="btn btn-primary btn-sm role-btn" data-role="student" style="flex:1;">Student</button>
+          <button type="button" class="btn btn-ghost btn-sm role-btn" data-role="faculty" style="flex:1;">Faculty</button>
+        </div>
+        <input type="hidden" id="selectedRole" value="student">
+
+        <form id="registerForm">
+          <div class="grid-2" style="gap:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">First Name</label>
+              <input type="text" id="firstName" class="form-input" placeholder="John" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Last Name</label>
+              <input type="text" id="lastName" class="form-input" placeholder="Doe" required>
+            </div>
+          </div>
+
+          <div class="form-group mt-16">
+            <label class="form-label">Email Address</label>
+            <div class="input-group">
+              <span class="input-icon">✉</span>
+              <input type="email" id="regEmail" class="form-input" placeholder="john@university.edu" required>
+            </div>
+          </div>
+
+          <div class="form-group" id="rollGroup">
+            <label class="form-label">Roll / Student ID</label>
+            <div class="input-group">
+              <span class="input-icon">#</span>
+              <input type="text" id="rollNumber" class="form-input" placeholder="e.g. 2021CS001">
+            </div>
+          </div>
+
+          <div class="form-group" id="deptGroup">
+            <label class="form-label">Department</label>
+            <select id="department" class="form-select">
+              <option value="">— Select department —</option>
+              <option>Computer Science</option>
+              <option>Electronics &amp; Communication</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+              <option>Business Administration</option>
+              <option>Mathematics</option>
+              <option>Physics</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-group">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="regPassword" class="form-input" placeholder="Min. 8 characters" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <div class="input-group">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="confirmPassword" class="form-input" placeholder="Repeat password" required>
+            </div>
+          </div>
+
+          <!-- Voice Enrolment for Students -->
+          <div id="voiceSection" class="form-group">
+            <label class="form-label">
+              Voice Sample <span style="color:var(--teal);font-size:.75rem;">(required for voice attendance check-in)</span>
+            </label>
+            <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">
+              Say your name and student ID clearly. We'll record 5 seconds to build your voiceprint.
+            </p>
+
+            <div id="voiceRecorder" class="voice-recorder">
+              <!-- Idle state -->
+              <div id="voiceIdle">
+                <button type="button" id="startVoiceBtn" class="mic-btn" title="Click to record voice sample">
+                  🎤
+                </button>
+                <p style="font-size:.875rem;color:var(--text-secondary);margin:0;">Click microphone to record voice sample</p>
+                <p style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">Speak: "My name is [Name], ID [Roll Number]"</p>
+              </div>
+
+              <!-- Recording state (hidden initially) -->
+              <div id="voiceRecording" style="display:none;">
+                <button type="button" id="stopVoiceBtn" class="mic-btn active" title="Stop recording">
+                  ⏹
+                </button>
+                <div class="waveform" id="waveform">
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                </div>
+                <p style="font-size:.875rem;color:var(--teal);margin:0;">Recording… speak now</p>
+                <p id="recTimer" style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">0s / 5s</p>
+              </div>
+
+              <!-- Done state (hidden initially) -->
+              <div id="voiceDone" style="display:none;">
+                <div style="font-size:2rem;margin-bottom:8px;">✅</div>
+                <p style="font-size:.875rem;color:var(--teal);margin:0;font-weight:600;">Voice sample recorded!</p>
+                <audio id="voicePlayback" controls style="margin-top:10px;width:100%;height:32px;filter:invert(1) hue-rotate(120deg);"></audio>
+                <button type="button" id="rerecordVoiceBtn"
+                  style="margin-top:10px;font-size:.75rem;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;">
+                  Re-record
+                </button>
+              </div>
+            </div>
+
+            <p class="upload-progress" id="uploadProgress">⏳ Uploading voice sample…</p>
+            <!-- Hidden field to track whether blob is ready -->
+            <input type="hidden" id="voiceRecorded" value="">
+          </div>
+
+          <label style="display:flex;align-items:flex-start;gap:10px;font-size:0.85rem;color:var(--text-secondary);cursor:pointer;margin-bottom:20px;">
+            <input type="checkbox" id="termsCheck" style="accent-color:var(--teal);margin-top:2px;" required>
+            I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+          </label>
+
+          <button type="submit" id="regSubmitBtn" class="btn btn-primary btn-block btn-lg">
+            Create Account
+          </button>
+        </form>
+
+        <div class="auth-footer-link mt-16">
+          Already have an account? <a href="login.html" style="font-weight:600;">Sign in →</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    // ── Role toggle ─────────────────────────────────────────────
+    document.querySelectorAll('.role-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.role-btn').forEach(b => {
+          b.className = 'btn btn-ghost btn-sm role-btn';
+          b.style.flex = '1';
+        });
+        btn.className = 'btn btn-primary btn-sm role-btn';
+        btn.style.flex = '1';
+        document.getElementById('selectedRole').value = btn.dataset.role;
+        const isFaculty = btn.dataset.role === 'faculty';
+        document.getElementById('rollGroup').style.display    = isFaculty ? 'none' : '';
+        document.getElementById('voiceSection').style.display = isFaculty ? 'none' : '';
+      });
+    });
+
+    // ── Voice recorder ──────────────────────────────────────────
+    let mediaRecorder = null;
+    let audioChunks  = [];
+    let voiceBlob    = null;
+    let recInterval  = null;
+    let recSeconds   = 0;
+
+    function showVoiceState(state) {   // 'idle' | 'recording' | 'done'
+      document.getElementById('voiceIdle').style.display      = state === 'idle'      ? '' : 'none';
+      document.getElementById('voiceRecording').style.display = state === 'recording' ? '' : 'none';
+      document.getElementById('voiceDone').style.display      = state === 'done'      ? '' : 'none';
+      document.getElementById('voiceRecorder').className =
+        'voice-recorder' + (state === 'recording' ? ' recording' : state === 'done' ? ' done' : '');
+    }
+
+    // Fix 2 – iOS/Android MIME detection: mirrors attendance.html pickSupportedAudioMimeType()
+    function pickSupportedAudioMimeType() {
+      if (typeof window.MediaRecorder === 'undefined') return '';
+      if (typeof MediaRecorder.isTypeSupported !== 'function') return '';
+      // Safari iOS only supports audio/mp4 — detect and prioritise it
+      const isIOS    = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const candidates = (isIOS || isSafari)
+        ? ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/wav']
+        : ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/wav'];
+      for (const type of candidates) {
+        try { if (MediaRecorder.isTypeSupported(type)) return type; } catch (e) {}
+      }
+      return '';
+    }
+
+    document.getElementById('startVoiceBtn').addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+
+        // Pick the best supported format (iOS-aware)
+        const mimeType = pickSupportedAudioMimeType();
+
+        mediaRecorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          const actualMimeType = mediaRecorder.mimeType || mimeType || 'application/octet-stream';
+          voiceBlob = new Blob(audioChunks, { type: actualMimeType });
+          const url = URL.createObjectURL(voiceBlob);
+          document.getElementById('voicePlayback').src = url;
+          document.getElementById('voiceRecorded').value = 'recorded';
+          stream.getTracks().forEach(t => t.stop());
+          showVoiceState('done');
+        };
+        mediaRecorder.start(200); // collect in 200ms chunks for better quality
+        recSeconds = 0;
+        document.getElementById('recTimer').textContent = '0s / 5s';
+        showVoiceState('recording');
+
+        // Auto-stop at 5s
+        recInterval = setInterval(() => {
+          recSeconds++;
+          document.getElementById('recTimer').textContent = recSeconds + 's / 5s';
+          if (recSeconds >= 5) stopRecording();
+        }, 1000);
+      } catch (err) {
+        alert('Microphone access denied. Please allow microphone permissions and try again.');
+      }
+    });
+
+    function stopRecording() {
+      clearInterval(recInterval);
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }
+
+    document.getElementById('stopVoiceBtn').addEventListener('click', stopRecording);
+    document.getElementById('rerecordVoiceBtn').addEventListener('click', () => {
+      voiceBlob = null;
+      document.getElementById('voiceRecorded').value = '';
+      showVoiceState('idle');
+    });
+
+    // ── Form submit ─────────────────────────────────────────────
+    document.getElementById('registerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errBox     = document.getElementById('errorBox');
+      const successBox = document.getElementById('successBox');
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      const role     = document.getElementById('selectedRole').value;
+      const password = document.getElementById('regPassword').value;
+      const confirm  = document.getElementById('confirmPassword').value;
+
+      if (password !== confirm) {
+        errBox.textContent = 'Passwords do not match.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (password.length < 8) {
+        errBox.textContent = 'Password must be at least 8 characters.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (!document.getElementById('termsCheck').checked) {
+        errBox.textContent = 'You must agree to the terms.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      // ── VOICE SAMPLE REQUIRED for students self-registering ──────
+      if (role === 'student' && !voiceBlob) {
+        errBox.textContent = 'Please record your voice sample before creating your account. It is required for voice-based attendance verification.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('regSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Creating account…';
+
+      // Show upload progress if there's a voice blob
+      if (voiceBlob) {
+        document.getElementById('uploadProgress').style.display = 'block';
+      }
+
+      try {
+        const regData = {
+          first_name:  document.getElementById('firstName').value.trim(),
+          last_name:   document.getElementById('lastName').value.trim(),
+          email:       document.getElementById('regEmail').value.trim(),
+          password:    password,
+          role:        role,
+          department:  document.getElementById('department').value,
+          roll_number: document.getElementById('rollNumber').value.trim(),
+          voiceBlob:   voiceBlob   // ← passed to AuthAPI.register() which uploads it
+        };
+
+        await AuthAPI.register(regData);
+
+        document.getElementById('uploadProgress').style.display = 'none';
+        successBox.textContent = 'Account created! Voice sample saved. Redirecting to login…';
+        successBox.classList.remove('hidden');
+        if (typeof Toast !== 'undefined') Toast.success('Registration successful!');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1800);
+      } catch (err) {
+        document.getElementById('uploadProgress').style.display = 'none';
+        errBox.textContent = typeof getErrorMessage === 'function'
+          ? getErrorMessage(err)
+          : 'Registration failed. Please try again.';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    });
+  </script>
+</body>
+</html>

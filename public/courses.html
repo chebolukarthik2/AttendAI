@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Courses — AttendAI</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4aa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendAI">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><div class="logo-icon">⬡</div>AttendAI</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Main</div>
+        <a href="dashboard.html" class="sidebar-link"><span class="link-icon">⊞</span> Dashboard</a>
+        <a href="attendance.html" class="sidebar-link"><span class="link-icon">✓</span> Mark Attendance</a>
+        <a href="report.html" class="sidebar-link"><span class="link-icon">📊</span> Reports</a>
+        <div class="sidebar-section-label">Management</div>
+        <a href="students.html" class="sidebar-link"><span class="link-icon">👤</span> Students</a>
+        <a href="faculty.html" class="sidebar-link" id="facultyNavLink"><span class="link-icon">🎓</span> Faculty</a>
+        <a href="courses.html" class="sidebar-link active"><span class="link-icon">📚</span> Courses</a>
+        <div class="sidebar-section-label">Account</div>
+        <a href="settings.html" class="sidebar-link"><span class="link-icon">⚙</span> Settings</a>
+        <a href="#" class="sidebar-link" id="logoutBtn"><span class="link-icon">⏻</span> Logout</a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Loading…</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <!-- Mobile Menu Toggle -->
+      <button class="mobile-menu-btn" id="menuToggle">
+        <span class="menu-icon">☰</span> Menu
+      </button>
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2>Course Management</h2>
+          <p>Manage courses, assign faculty, and set classroom locations</p>
+        </div>
+        <button class="btn btn-primary" id="addCourseBtn">➕ Add Course</button>
+      </div>
+
+      <!-- Add Course Form -->
+      <div id="addCourseForm" class="card mb-24" style="display:none;">
+        <div class="card-header"><h4 id="formTitle">Add New Course</h4>
+          <button class="btn btn-ghost btn-sm" id="cancelAddBtn">✕ Cancel</button>
+        </div>
+        <form id="courseForm">
+          <input type="hidden" id="cEditId" value="">
+          <div class="grid-2" style="gap:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Course Code</label>
+              <input type="text" id="cCode" class="form-input" placeholder="e.g. CS101" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Course Name</label>
+              <input type="text" id="cName" class="form-input" placeholder="e.g. Data Structures" required>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:14px;margin-top:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Department</label>
+              <select id="cDepartment" class="form-select">
+                <option value="">— Select —</option>
+                <option>Computer Science</option>
+                <option>Electronics & Communication</option>
+                <option>Mechanical Engineering</option>
+                <option>Civil Engineering</option>
+                <option>Business Administration</option>
+                <option>Mathematics</option>
+                <option>Physics</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Faculty (optional)</label>
+              <select id="cFaculty" class="form-select">
+                <option value="">— None —</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:14px;margin-top:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Semester</label>
+              <select id="cSemester" class="form-select">
+                <option value="">— Select —</option>
+                <option>1</option><option>2</option><option>3</option><option>4</option>
+                <option>5</option><option>6</option><option>7</option><option>8</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Year</label>
+              <input type="number" id="cYear" class="form-input" placeholder="e.g. 2026" min="2020" max="2040">
+            </div>
+          </div>
+          <div class="grid-2" style="gap:14px;margin-top:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Start Time</label>
+              <input type="time" id="cStartTime" class="form-input">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">End Time</label>
+              <input type="time" id="cEndTime" class="form-input">
+            </div>
+          </div>
+
+          <!-- Classroom Location -->
+          <div style="margin-top:14px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-md);border:1px solid var(--border);">
+            <p style="font-size:.85rem;font-weight:600;color:var(--text-primary);margin-bottom:10px;">📍 Classroom Geo-fence Location</p>
+            <div class="grid-2" style="gap:14px;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Room Name</label>
+                <input type="text" id="cRoomName" class="form-input" placeholder="e.g. Room 301, Block A">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">GPS Coordinates</label>
+                <div style="display:flex;gap:8px;">
+                  <input type="text" id="cLat" class="form-input" placeholder="Latitude" style="flex:1;">
+                  <input type="text" id="cLng" class="form-input" placeholder="Longitude" style="flex:1;">
+                  <button type="button" id="captureGPSBtn" class="btn btn-outline btn-sm" style="white-space:nowrap;">📍 Capture GPS</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="cError" class="alert alert-error hidden" style="margin-top:14px;"></div>
+          <div id="cSuccess" class="alert alert-success hidden" style="margin-top:14px;"></div>
+          <button type="submit" id="cSubmitBtn" class="btn btn-primary" style="margin-top:14px;">Create Course</button>
+        </form>
+      </div>
+
+      <!-- Filter -->
+      <div class="card mb-24">
+        <div class="grid-2" style="gap:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Filter by Department</label>
+            <select id="filterDept" class="form-select">
+              <option value="">All Departments</option>
+              <option>Computer Science</option>
+              <option>Electronics & Communication</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+              <option>Business Administration</option>
+              <option>Mathematics</option>
+              <option>Physics</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Filter by Semester</label>
+            <select id="filterSem" class="form-select">
+              <option value="">All Semesters</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option>
+              <option>5</option><option>6</option><option>7</option><option>8</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course List -->
+      <div class="card">
+        <div class="card-header"><h4>All Courses</h4>
+          <span class="badge badge-teal" id="courseCount">—</span>
+        </div>
+        <div id="courseList">
+          <div class="text-center" style="padding:24px;"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/courses.js"></script>
+  <!-- Mobile Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <script>
+    (function() {
+      var btn     = document.getElementById("menuToggle");
+      var sidebar = document.querySelector(".sidebar");
+      var overlay = document.getElementById("sidebarOverlay");
+      function openSidebar()  { sidebar.classList.add("open");    overlay.classList.add("active"); }
+      function closeSidebar() { sidebar.classList.remove("open"); overlay.classList.remove("active"); }
+      if (btn)     btn.addEventListener("click", openSidebar);
+      if (overlay) overlay.addEventListener("click", closeSidebar);
+    })();
+  </script>
+</body>
+</html>

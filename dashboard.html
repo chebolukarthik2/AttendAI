@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — AttendAI</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .live-course-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: border-color .2s;
+    }
+    .live-course-card:hover { border-color: var(--teal); }
+    .live-course-card .course-info h5 { margin: 0; font-size: .95rem; color: var(--text-primary); }
+    .live-course-card .course-info p { margin: 4px 0 0; font-size: .8rem; color: var(--text-muted); }
+  </style>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00d4aa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AttendAI">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+
+  <div class="dashboard-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">⬡</div>
+        AttendAI
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Main</div>
+        <a href="dashboard.html"  class="sidebar-link active">
+          <span class="link-icon">⊞</span> Dashboard
+        </a>
+        <a href="attendance.html" class="sidebar-link">
+          <span class="link-icon">✓</span> Mark Attendance
+        </a>
+        <a href="report.html"     class="sidebar-link">
+          <span class="link-icon">📊</span> Reports
+        </a>
+
+        <div class="sidebar-section-label">Management</div>
+        <a href="students.html" class="sidebar-link">
+          <span class="link-icon">👤</span> Students
+        </a>
+        <a href="faculty.html" class="sidebar-link" id="facultyNavLink">
+          <span class="link-icon">🎓</span> Faculty
+        </a>
+        <a href="courses.html" class="sidebar-link" id="coursesNavLink">
+          <span class="link-icon">📚</span> Courses
+        </a>
+
+        <div class="sidebar-section-label">Account</div>
+        <a href="settings.html" class="sidebar-link">
+          <span class="link-icon">⚙</span> Settings
+        </a>
+        <a href="#" class="sidebar-link" id="logoutBtn">
+          <span class="link-icon">⏻</span> Logout
+        </a>
+      </nav>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Loading…</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- Mobile Menu Toggle -->
+      <button class="mobile-menu-btn" id="menuToggle">
+        <span class="menu-icon">☰</span> Menu
+      </button>
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2>Good morning, <span class="text-teal" id="greetName">there</span> 👋</h2>
+          <p id="todayDate">Loading date…</p>
+        </div>
+        <div class="flex gap-md">
+          <a href="attendance.html" class="btn btn-primary">
+            🎙️ Mark Attendance
+          </a>
+          <a href="report.html" class="btn btn-outline">
+            📊 View Reports
+          </a>
+        </div>
+      </div>
+
+      <!-- Live Courses for Students -->
+      <div id="liveCourseSection" class="card mb-24 slide-up" style="display:none;">
+        <div class="card-header">
+          <h4>🟢 Live Courses — Mark Your Attendance</h4>
+        </div>
+        <div id="liveCourseList" style="display:flex;flex-direction:column;gap:10px;">
+          <p class="text-muted text-center" style="padding:16px;">Loading live courses…</p>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid-4 mb-32">
+        <div class="stat-card teal slide-up delay-1">
+          <div class="stat-icon teal">👥</div>
+          <div class="stat-value" id="totalStudents">—</div>
+          <div class="stat-label">Total Students</div>
+          <div class="stat-trend text-teal">↑ +12 this month</div>
+        </div>
+        <div class="stat-card amber slide-up delay-2">
+          <div class="stat-icon amber">✓</div>
+          <div class="stat-value" id="presentToday">—</div>
+          <div class="stat-label">Present Today</div>
+          <div class="stat-trend text-amber" id="attendancePct">Loading…</div>
+        </div>
+        <div class="stat-card purple slide-up delay-3">
+          <div class="stat-icon purple">📚</div>
+          <div class="stat-value" id="totalCourses">—</div>
+          <div class="stat-label">Active Courses</div>
+          <div class="stat-trend" style="color:#a855f7;">This semester</div>
+        </div>
+        <div class="stat-card teal slide-up delay-4">
+          <div class="stat-icon teal">📈</div>
+          <div class="stat-value" id="avgAttendance">—</div>
+          <div class="stat-label">Avg. Attendance</div>
+          <div class="stat-trend text-teal">↑ +2.1% vs last week</div>
+        </div>
+      </div>
+
+      <!-- Attendance Progress -->
+      <div class="card mb-24 slide-up delay-2">
+        <div class="card-header">
+          <h4>Today's Attendance Rate</h4>
+          <span class="badge badge-teal">Live</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="flex:1;">
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="attendanceBar" style="width:0%"></div>
+            </div>
+          </div>
+          <div style="font-family:'Syne',sans-serif; font-size:1.25rem; font-weight:700; color:var(--teal); white-space:nowrap;" id="attendanceBarPct">
+            — %
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid-2 mb-24">
+        <div class="card slide-up delay-1">
+          <div class="card-header">
+            <h4>Weekly Attendance</h4>
+            <select class="form-select" style="width:auto;padding:4px 10px;font-size:0.8rem;">
+              <option>This Week</option>
+              <option>Last Week</option>
+            </select>
+          </div>
+          <div class="chart-container">
+            <canvas id="weeklyChart"></canvas>
+          </div>
+        </div>
+        <div class="card slide-up delay-2">
+          <div class="card-header">
+            <h4>Today's Distribution</h4>
+            <span class="text-muted" style="font-size:0.8rem;" id="todayTotal">—</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="todayDonut"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity & Quick Actions -->
+      <div class="grid-2">
+        <div class="card slide-up delay-3">
+          <div class="card-header">
+            <h4>Recent Activity</h4>
+            <a href="#" style="font-size:0.8rem; color:var(--text-muted);">View all</a>
+          </div>
+          <div id="activityList">
+            <div class="text-center" style="padding:24px;">
+              <span class="spinner"></span>
+            </div>
+          </div>
+        </div>
+        <div class="card slide-up delay-4">
+          <div class="card-header">
+            <h4>Quick Actions</h4>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <a href="attendance.html" class="btn btn-outline" style="justify-content:flex-start;gap:12px;">
+              <span>🎙️</span> Mark Attendance via Voice
+            </a>
+            <a href="attendance.html#manual" class="btn btn-ghost" style="justify-content:flex-start;gap:12px;">
+              <span>✏️</span> Manual Attendance Entry
+            </a>
+            <a href="report.html" class="btn btn-ghost" style="justify-content:flex-start;gap:12px;">
+              <span>📋</span> Generate Attendance Report
+            </a>
+            <a href="#" class="btn btn-ghost" style="justify-content:flex-start;gap:12px;">
+              <span>⬇️</span> Export Data as CSV
+            </a>
+            <a href="register.html" class="btn btn-ghost" style="justify-content:flex-start;gap:12px;">
+              <span>➕</span> Register New Student
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script>
+    document.getElementById('todayDate').textContent =
+      new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+    // Sidebar toggle — deferred to DOMContentLoaded so overlay element exists
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn     = document.getElementById('menuToggle');
+      var sidebar = document.querySelector('.sidebar');
+      var overlay = document.getElementById('sidebarOverlay');
+      function openSidebar()  { sidebar.classList.add('open');    overlay.classList.add('active'); }
+      function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
+      if (btn)     btn.addEventListener('click', openSidebar);
+      if (overlay) overlay.addEventListener('click', closeSidebar);
+      // Also close sidebar when any sidebar link is clicked
+      document.querySelectorAll('.sidebar-link').forEach(function(link) {
+        link.addEventListener('click', closeSidebar);
+      });
+    });
+  </script>
+<script>
+document.addEventListener("DOMContentLoaded", async function() {
+  var user = Auth.getUser();
+  if (!user) return;
+
+  if (user.role === "student") {
+    // Hide management section
+    document.querySelectorAll(".sidebar-section-label").forEach(function(label) {
+      if (label.textContent.trim() === "Management") {
+        label.style.display = "none";
+        var next = label.nextElementSibling;
+        while (next && !next.classList.contains("sidebar-section-label")) {
+          next.style.display = "none";
+          next = next.nextElementSibling;
+        }
+      }
+    });
+    // Hide manual attendance & register links
+    document.querySelectorAll('a[href="attendance.html#manual"]').forEach(l => l.style.display = 'none');
+    document.querySelectorAll('a[href="register.html"]').forEach(l => {
+      if (l.textContent.includes('Register')) l.style.display = 'none';
+    });
+
+    // Show live courses for students
+    var section = document.getElementById('liveCourseSection');
+    section.style.display = '';
+    try {
+      var liveCourses = await CourseAPI.listLive();
+      var container = document.getElementById('liveCourseList');
+      if (!liveCourses.length) {
+        container.innerHTML = '<p class="text-muted text-center" style="padding:16px;">No live courses right now.</p>';
+      } else {
+        container.innerHTML = liveCourses.map(function(c) {
+          var timeStr = c.start_time ? formatTime12Simple(c.start_time) + ' – ' + formatTime12Simple(c.end_time) : '';
+          return '<div class="live-course-card">' +
+            '<div class="course-info">' +
+              '<h5>📚 ' + c.code + ' — ' + c.name + '</h5>' +
+              '<p>' + (c.room_name || '') + (timeStr ? ' • ' + timeStr : '') + '</p>' +
+            '</div>' +
+            '<a href="attendance.html?course=' + c.id + '" class="btn btn-primary btn-sm">✓ Mark Attendance</a>' +
+          '</div>';
+        }).join('');
+      }
+    } catch(e) {
+      document.getElementById('liveCourseList').innerHTML = '<p class="text-muted text-center">Could not load live courses.</p>';
+    }
+  }
+
+  if (user.role === 'faculty') {
+    var facultyLink = document.getElementById('facultyNavLink');
+    if (facultyLink) facultyLink.style.display = 'none';
+  }
+});
+
+function formatTime12Simple(t) {
+  if (!t) return '';
+  var parts = t.split(':');
+  var hr = parseInt(parts[0]);
+  var ampm = hr >= 12 ? 'PM' : 'AM';
+  var hr12 = hr % 12 || 12;
+  return hr12 + ':' + parts[1] + ' ' + ampm;
+}
+</script>
+  <!-- Mobile Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+</body>
+</html>

@@ -296,13 +296,14 @@ const AttendanceAPI = {
   },
   async markFace(formData) {
     const courseId = formData.get('course_id');
+    const geoVerified = formData.get('geo_verified') === 'true';
     const user = Auth.getUser();
     return this.mark({
       student_id: user?.id,
       course_id: courseId,
       status: 'Present',
       method: 'Voice',
-      geo_verified: true
+      geo_verified: geoVerified
     });
   },
   async today(courseId) {

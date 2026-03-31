@@ -21,17 +21,23 @@
         <div class="logo-icon">⬡</div>
         AttendAI
       </a>
-      <ul class="nav-links">
-        <li><a href="#features">Features</a></li>
-        <li><a href="#how">How It Works</a></li>
-        <li><a href="#about">About</a></li>
-      </ul>
-      <div class="nav-actions">
-        <a href="login.html" class="btn btn-ghost btn-sm">Sign In</a>
-        <a href="register.html" class="btn btn-primary btn-sm">Get Started</a>
-      </div>
+      <button class="nav-hamburger" id="navHamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </nav>
+  <!-- Mobile Nav Menu (outside navbar to avoid stacking context issues) -->
+  <div class="nav-menu" id="navMenu">
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#about">About</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="login.html" class="btn btn-ghost btn-sm">Sign In</a>
+      <a href="register.html" class="btn btn-primary btn-sm">Get Started</a>
+    </div>
+  </div>
 
   <!-- Hero -->
   <section class="hero">
@@ -165,5 +171,23 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/api.js"></script>
+  <script>
+    // Mobile nav hamburger toggle
+    const hamburger = document.getElementById('navHamburger');
+    const navMenu = document.getElementById('navMenu');
+    if (hamburger && navMenu) {
+      hamburger.addEventListener('click', () => {
+        hamburger.classList.toggle('active');
+        navMenu.classList.toggle('open');
+      });
+      // Close menu when a link is clicked
+      navMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          hamburger.classList.remove('active');
+          navMenu.classList.remove('open');
+        });
+      });
+    }
+  </script>
 </body>
 </html>

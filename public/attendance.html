@@ -494,17 +494,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedCourse = urlParams.get('course');
 
-    // Handle #manual hash — auto-open the Manual Entry tab when arriving
-    // from dashboard "Manual Entry" quick link (attendance.html#manual)
-    if (window.location.hash === '#manual') {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-      const manualBtn = document.querySelector('.tab-btn[data-tab="manualTab"]');
-      const manualPanel = document.getElementById('manualTab');
-      if (manualBtn)  manualBtn.classList.add('active');
-      if (manualPanel) manualPanel.classList.remove('hidden');
-    }
-
     function haversineDistance(lat1, lng1, lat2, lng2) {
       const R = 6371000;
       const toRad = x => x * Math.PI / 180;
@@ -625,8 +614,11 @@
     let audioStream     = null;
 
     const SpeechRecognition  = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const speechSupported    = !!SpeechRecognition;
+    let   speechSupported    = !!SpeechRecognition;
     const mediaRecSupported  = typeof window.MediaRecorder !== 'undefined';
+    const isAndroidChrome    = /Android/i.test(navigator.userAgent) && /Chrome/i.test(navigator.userAgent);
+    let   sttFailCount       = 0;          // track repeated STT failures
+    const MAX_STT_FAILURES   = isAndroidChrome ? 1 : 3;  // degrade faster on Android
 
     function pickSupportedAudioMimeType() {
       if (!mediaRecSupported) return '';
@@ -757,13 +749,7 @@
       return { ok: true };
     }
 
-    // ── Start recording ───────────────────────────────────────────
-    // KEY ORDER: SpeechRecognition starts FIRST, then MediaRecorder.
-    // Chrome gives SpeechRecognition its own internal mic pipeline.
-    // If MediaRecorder grabs the mic first with echoCancellation/noiseSuppression
-    // applied, Chrome's STT pipeline gets a processed signal it can't handle → silent.
-    // Starting STT first lets Chrome claim the raw mic, then MediaRecorder
-    // can share the same underlying track without interfering.
+    // ── Start recording (SpeechRecognition + MediaRecorder in parallel) ──────
     startVoiceBtn.addEventListener('click', async () => {
       if (geoStatus !== 'inside' && geoStatus !== 'bypassed') {
         setVoiceStatus('⚠ Location not verified. Click "Refresh" and try again.');
@@ -774,89 +760,32 @@
         return;
       }
 
-      transcript        = '';
-      let lastInterim   = ''; // save last interim in case stop() fires before final result
-      verifiedOk        = false;
+      transcript       = '';
+      verifiedOk       = false;
       capturedAudioBlob = null;
-      audioChunks2      = [];
+      audioChunks2     = [];
+      sttFailCount     = 0;
 
-      // ── STEP 1: Start SpeechRecognition first ─────────────────────────────
-      if (speechSupported) {
-        recognition = new SpeechRecognition();
-        const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        // Disable continuous on mobile — rely on onend restart instead
-        recognition.continuous     = !(isIOS || isAndroid);
-        recognition.interimResults = true;
-        recognition.lang           = 'en-IN';
-
-        recognition.onresult = (event) => {
-          let interim = '', final = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const t = event.results[i][0].transcript;
-            if (event.results[i].isFinal) { final += t + ' '; lastInterim = ''; }
-            else { interim += t; lastInterim = t; }
-          }
-          transcript += final;
-          const live = (transcript + interim).trim();
-          setVoiceStatus(
-            live ? `🎙 Heard: "${live}"` : 'Listening — speak now…',
-            `${recSec} / ${MAX_REC_SEC}s`
-          );
-        };
-
-        recognition.onerror = (event) => {
-          if (event.error === 'no-speech')                      return; // silence gap — ignore
-          if (event.error === 'network' || event.error === 'aborted') return; // Chrome STT blip — onend will restart
-          if (event.error === 'language-not-supported') {
-            // Fall back from en-IN → en-US and restart
-            recognition._langFallback = true;
-            recognition.lang = 'en-US';
-            setTimeout(() => {
-              if (recognition._shouldRestart && !recognition._stopping) {
-                try { recognition.start(); } catch(e) {}
-              }
-            }, 150);
-            return;
-          }
-          if (event.error === 'not-allowed') {
-            stopListening();
-            setVoiceStatus('⚠ Microphone permission denied. Please allow microphone access and try again.');
-            setVoiceUIState('idle');
-            refreshVoiceBtnState();
-          }
-        };
-
-        recognition.onend = () => {
-          if (recognition._langFallback) { recognition._langFallback = false; return; }
-          if (recSec < MAX_REC_SEC && recognition._shouldRestart && !recognition._stopping) {
-            try { recognition.start(); } catch(e) {}
-          }
-        };
-
-        recognition._shouldRestart = true;
-        recognition._stopping      = false;
-        recognition._langFallback  = false;
-        recognition.start();
-      } else {
-        recognition = null;
+      // On Android, immediately degrade STT if previous sessions failed
+      if (isAndroidChrome) {
+        sttFailCount = 0;
       }
 
-      // ── STEP 2: Start MediaRecorder AFTER STT is initialised ──────────────
-      // Small delay so Chrome STT can claim the raw mic track first.
-      await new Promise(r => setTimeout(r, 80));
+      // ── Start MediaRecorder to capture raw audio for biometric ──────────
       try {
-        // Use minimal constraints — avoid heavy DSP that can corrupt the STT signal
+        // Try full constraints first; fall back to bare { audio: true } on older mobile
+        // browsers that reject unknown constraint keys with OverconstrainedError.
         try {
           audioStream = await navigator.mediaDevices.getUserMedia({
             audio: {
-              echoCancellation: false,  // OFF: heavy processing breaks Chrome STT
-              noiseSuppression: false,  // OFF: same reason
-              autoGainControl:  true,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
               channelCount: { ideal: 1 }
             }
           });
         } catch (constraintErr) {
+          // Fallback: ask for audio with no extra constraints
           audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
         const preferredMimeType = pickSupportedAudioMimeType();
@@ -871,30 +800,122 @@
         };
         mediaRecorder2.start(200);
       } catch (err) {
-        // MediaRecorder failed — stop STT too and bail
-        if (recognition) { recognition._shouldRestart = false; try { recognition.stop(); } catch(e) {} }
         setVoiceStatus('⚠ Microphone permission denied. Please allow access and try again.');
-        setVoiceUIState('idle');
-        refreshVoiceBtnState();
         return;
+      }
+
+      // ── Start SpeechRecognition in parallel (if available) ─────────────────
+      if (speechSupported) {
+        recognition = new SpeechRecognition();
+        // iOS Safari does not support continuous mode — detect and disable it.
+        // We rely on the onend restart loop instead to keep listening.
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        // BUG FIX 1: Chrome Android is also unreliable in continuous mode.
+        // Disable continuous on ALL mobile (iOS + Android); rely on onend restart.
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        recognition.continuous     = !(isIOS || isAndroid);
+        recognition.interimResults = true;
+        recognition.lang = 'en-IN';
+
+        recognition.onresult = (event) => {
+          let interim = '', final = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const t = event.results[i][0].transcript;
+            if (event.results[i].isFinal) final += t + ' ';
+            else interim += t;
+          }
+          transcript += final;
+          const live = (transcript + interim).trim();
+          setVoiceStatus(
+            live ? `🎙 Heard: "${live}"` : 'Listening — speak now…',
+            `${recSec} / ${MAX_REC_SEC}s`
+          );
+        };
+
+        recognition.onerror = (event) => {
+          // Chrome Android commonly fires 'network', 'aborted', 'service-not-allowed'
+          if (event.error === 'no-speech') return;
+          if (event.error === 'network' || event.error === 'aborted' || event.error === 'service-not-allowed') {
+            sttFailCount++;
+            if (sttFailCount >= MAX_STT_FAILURES) {
+              // Too many failures — degrade gracefully to biometric-only
+              console.warn('STT failed ' + sttFailCount + ' times on this session; degrading to biometric-only');
+              speechSupported = false;
+              recognition._shouldRestart = false;
+              recognition._stopping = true;
+              try { recognition.stop(); } catch(e) {}
+              recognition = null;
+              setVoiceStatus('Recording voice sample… speech-to-text unavailable on this device, biometric verification only.', `${recSec} / ${MAX_REC_SEC}s`);
+            }
+            return;
+          }
+
+          if (event.error === 'language-not-supported') {
+            recognition._langFallback = true;
+            recognition.lang = 'en-US';
+            setTimeout(() => {
+              if (recognition._shouldRestart && !recognition._stopping) {
+                try { recognition.start(); } catch(e) {}
+              }
+            }, 150);
+            return;
+          }
+          if (event.error === 'not-allowed') {
+            stopListening();
+            setVoiceStatus('⚠️ Microphone permission denied. Please allow access and try again.');
+            setVoiceUIState('idle');
+            refreshVoiceBtnState();
+          }
+        };
+
+        recognition.onend = () => {
+          if (recognition._langFallback) { recognition._langFallback = false; return; }
+          if (recSec < MAX_REC_SEC && recognition._shouldRestart && !recognition._stopping) {
+            // Chrome Android needs a brief pause before restarting recognition
+            const delay = isAndroidChrome ? 250 : 50;
+            setTimeout(() => {
+              if (recognition && recognition._shouldRestart && !recognition._stopping) {
+                try { recognition.start(); } catch(e) {}
+              }
+            }, delay);
+          }
+        };
+
+        recognition._shouldRestart = true;
+        recognition._stopping      = false;
+        recognition._langFallback  = false;
+        recognition.start();
+      } else {
+        recognition = null;
       }
 
       recSec = 0;
       setVoiceUIState('recording');
-      setVoiceStatus(
-        speechSupported
-          ? 'Listening — say your full name and roll number clearly…'
-          : 'Recording voice sample… biometric verification only.',
-        `0 / ${MAX_REC_SEC}s`
-      );
+      if (speechSupported) {
+        setVoiceStatus('Listening — say your full name and roll number clearly…', `0 / ${MAX_REC_SEC}s`);
+      } else {
+        setVoiceStatus('Recording voice sample… speech-to-text unavailable, biometric verification only.', `0 / ${MAX_REC_SEC}s`);
+      }
+
+      // Hard safety timeout — forcefully stop everything after MAX_REC_SEC + 1s
+      // This ensures recording ALWAYS stops even if setInterval drifts on Android
+      if (window._voiceHardTimeout) clearTimeout(window._voiceHardTimeout);
+      window._voiceHardTimeout = setTimeout(() => {
+        if (mediaRecorder2 && mediaRecorder2.state !== 'inactive') {
+          console.warn('Hard timeout triggered — force-stopping recording');
+          stopListening();
+        }
+      }, (MAX_REC_SEC + 1) * 1000);
 
       recInterval = setInterval(() => {
         recSec++;
         if (recSec >= MAX_REC_SEC) {
+          clearInterval(recInterval);
+          recInterval = null;
           stopListening();
         } else {
           if (speechSupported) {
-            const live = (transcript + lastInterim).trim();
+            const live = transcript.trim();
             setVoiceStatus(
               live ? `🎙 Heard: "${live}"` : 'Listening — speak now…',
               `${recSec} / ${MAX_REC_SEC}s`
@@ -907,8 +928,14 @@
     });
 
     // ── Stop recording & run dual verification ────────────────────
+    let _stopListeningRunning = false;
     async function stopListening() {
-      clearInterval(recInterval);
+      // Prevent double-invocation (timer + hard timeout race)
+      if (_stopListeningRunning) return;
+      _stopListeningRunning = true;
+
+      if (window._voiceHardTimeout) { clearTimeout(window._voiceHardTimeout); window._voiceHardTimeout = null; }
+      if (recInterval) { clearInterval(recInterval); recInterval = null; }
 
       // Stop SpeechRecognition
       if (recognition) {
@@ -919,19 +946,17 @@
 
       // Stop MediaRecorder (triggers onstop → sets capturedAudioBlob)
       if (mediaRecorder2 && mediaRecorder2.state !== 'inactive') {
-        mediaRecorder2.stop();
+        try { mediaRecorder2.stop(); } catch(e) {}
       }
 
-      // Rescue any interim result that never got finalised before stop()
-      // This is the main Chrome "not heard" fix — Chrome often doesn't
-      // fire a final result before the session ends, but interim is already there.
-      if (speechSupported && !transcript.trim() && lastInterim.trim()) {
-        transcript = lastInterim.trim() + ' ';
+      // Also kill audio stream tracks immediately on Android to release mic
+      if (audioStream) {
+        audioStream.getTracks().forEach(t => t.stop());
       }
 
       if (speechSupported && !transcript.trim()) {
         setVoiceUIState('failed');
-        setVoiceStatus('⚠ Nothing heard. Please check your microphone is not muted and try again.');
+        setVoiceStatus('⚠ Nothing heard. Please try again in a quieter environment.');
         return;
       }
 
@@ -1030,6 +1055,9 @@
         const heardMsg = speechSupported && transcript.trim()
           ? ` Heard: "${transcript.trim()}".` : '';
         setVoiceStatus(`✓ Verified${heardMsg} Click Submit to continue. (biometric unavailable: ${err.message})`);
+      }
+      } finally {
+        _stopListeningRunning = false;
       }
     }
 

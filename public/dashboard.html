@@ -232,7 +232,8 @@
     document.getElementById('todayDate').textContent =
       new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
-    (function() {
+    // Sidebar toggle — deferred to DOMContentLoaded so overlay element exists
+    document.addEventListener('DOMContentLoaded', function() {
       var btn     = document.getElementById('menuToggle');
       var sidebar = document.querySelector('.sidebar');
       var overlay = document.getElementById('sidebarOverlay');
@@ -240,7 +241,11 @@
       function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('active'); }
       if (btn)     btn.addEventListener('click', openSidebar);
       if (overlay) overlay.addEventListener('click', closeSidebar);
-    })();
+      // Also close sidebar when any sidebar link is clicked
+      document.querySelectorAll('.sidebar-link').forEach(function(link) {
+        link.addEventListener('click', closeSidebar);
+      });
+    });
   </script>
 <script>
 document.addEventListener("DOMContentLoaded", async function() {
